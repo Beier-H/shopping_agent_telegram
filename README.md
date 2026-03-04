@@ -2,7 +2,7 @@
 
 Belle is an AI-powered e-commerce shopping assistant built on Telegram. It helps users find products from a catalog using natural language text or by uploading images. Belle remembers returning users and personalises recommendations based on their shopping history.
 
-> 💬 **Try it live:** Search `@belle_shopping_bot` on Telegram
+> 💬 **Try it live:** Search `@n8n_shopping` on Telegram
 
 ---
 
@@ -107,6 +107,29 @@ Stored in Google Sheets with the following columns:
 - Semantic search via custom `match_products` SQL function
 - Prices displayed in USD (converted from INR at 1 USD = 83 INR)
 
+## Dataset
+
+**Source:** [Flipkart Products Dataset](https://www.kaggle.com/datasets/PromptCloudHQ/flipkart-products) via Kaggle (PromptCloudHQ)
+
+The original dataset contains ~20,000 Flipkart product listings. For this project:
+
+- Randomly sampled **300 products** from the full dataset
+- Preserved the following columns:
+
+| Column | Description |
+|---|---|
+| `uniq_id` | Unique product identifier |
+| `product_name` | Full product title |
+| `product_category_tree` | Category hierarchy (e.g. Clothing >> Men >> T-Shirts) |
+| `retail_price` | Original price in INR |
+| `image_url` | Hosted product image URL |
+| `image_local_path` | Local path reference |
+| `text` | Combined text field used for embedding generation |
+
+- Cleaned null values and malformed rows
+- Generated vector embeddings using `sentence-transformers/all-MiniLM-L6-v2` on the `text` column
+- Uploaded to Supabase with pgvector for semantic similarity search
+- Prices displayed in USD at checkout (converted at 1 USD = 83 INR)
 ---
 
 ## How to Run It Yourself
@@ -122,7 +145,7 @@ Stored in Google Sheets with the following columns:
 
 **1. Clone this repo**
 ```bash
-git clone https://github.com/Beier-H/belle-shopping-bot
+git clone https://github.com/Beier-H/shopping-agent-telegram
 ```
 
 **2. Import workflow into n8n**
