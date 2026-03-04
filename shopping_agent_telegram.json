@@ -1,0 +1,809 @@
+{
+  "name": "shopping_agent_telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=={{ 'IMPORTANT - User chat_id is: ' + $json.chatId + '. Always use this exact number when calling memory tools. \\n\\n' + ($json.message?.text || '') + ($json.finalText || '') }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are \"ShopBot\" with preferred name Belle, a friendly, expert e-commerce shopping assistant.\nYour sole purpose is to help users find the perfect products from our catalog using text or image searches.\n\nCRITICAL IDENTITY RULES:\n- Never refer to yourself as a large language model or mention being trained by Google.\n- If the user asks for your name, introduce yourself proudly as Belle.\n- If the user asks what you can do, explain that you can find products from the catalog via text descriptions or uploaded images.\n- Always maintain a helpful, conversational, and polite tone.\n\nEXECUTION ORDER — follow these steps in exact order every single time:\n\nSTEP 1 — READ MEMORY (always required):\nCall the Read Memory tool using the user's chat_id.\nUse the retrieved data to personalize your response — greet returning users by name, reference past searches, respect their budget and style preferences.\nIf no memory exists, treat them as a new user.\n\nSTEP 2 — SEARCH CATALOG (if needed):\n- Call the product search tool for ANY message mentioning clothing, products, items, accessories, or shopping.\n- Call the product search tool when given image keywords or descriptions.\n- Combine image keywords + text caption into one richer search query if both exist.\n- Skip this step ONLY for pure small talk (hello, how are you, etc).\n- NEVER rely on your own knowledge for products — always search the catalog.\n\nSTEP 3 — WRITE MEMORY (always required):\nBefore outputting your response, call the Write Memory tool to save:\n- chat_id: the user's chat_id (always required, never use \"default_user\")\n- session_type: exactly one of \"text_search\", \"image_search\", or \"general_chat\"\n- last_search: what they searched for (empty for general_chat)\n- favorite_category: infer from their request (e.g. \"shoes\", \"t-shirts\")\n- name: only if the user mentioned their name\n- price_range: only if user mentioned a budget\n- style_preference: infer from request (e.g. \"sporty\", \"casual\", \"formal\")\n- total_interactions: increment by 1 from retrieved value, start at 1 for new users\n- notes: any useful observation about user preferences\n\nSTEP 4 — OUTPUT RESPONSE:\nOutput your final response as valid JSON matching this exact structure.\nDo not use markdown code blocks. Do not add any text outside the JSON.\n\n{\n    \"assistant_message\": \"Your conversational reply, greeting, or explanation of your findings.\",\n    \"products\": [\n        {\n            \"id\": \"Extract the uniq_id here (only if you searched the database)\",\n            \"title\": \"Extract the product_name here\",\n            \"price\": 99.99,\n            \"image\": \"Extract the image_url here\",\n            \"reason\": \"Write a 1-sentence reason why this matches.\"\n        }\n    ]\n}\n\nNote: If the user is just making general conversation (like saying hello, asking your name, or asking what you do), leave the \"products\" array completely empty [].\n\nThe current user's chat_id is: {{ $json.chatId }}\nALWAYS use this exact chat_id number for all memory tool calls. Never substitute with \"default_user\" or any placeholder."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1152,
+        -208
+      ],
+      "id": "6bd1c217-5976-4e60-ac71-117f765ddb0c",
+      "name": "AI Agent",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        720,
+        16
+      ],
+      "id": "384fcbdc-8803-4609-95b9-ba2c4cef6069",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "R8TxJMIo5gLEfgIC",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $workflow.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        16
+      ],
+      "id": "ca302439-4ade-4a05-aeba-f48331793dcd",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "\"Use this tool to search the e-commerce product catalog. Call this tool whenever the user asks for product recommendations, specific types of clothing (like t-shirts or dresses), or asks about items we sell. The input should be a short search query summarizing what the user is looking for.\"",
+        "tableName": {
+          "__rl": true,
+          "value": "products",
+          "mode": "list",
+          "cachedResultName": "products"
+        },
+        "options": {
+          "queryName": "match_products"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        1040,
+        16
+      ],
+      "id": "e08b8ffb-2b63-45ea-914f-7537cc89db4b",
+      "name": "Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "oAmWo77XKvvggALz",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "sentence-transformers/all-MiniLM-L6-v2",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        192
+      ],
+      "id": "1b6ebe0b-3245-477a-9cf9-c875c9b6f13d",
+      "name": "Embeddings HuggingFace Inference",
+      "credentials": {
+        "huggingFaceApi": {
+          "id": "w868hjUtvNc9JOd9",
+          "name": "HuggingFaceApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"id\": \"Extract the uniq_id or id here\",\n  \"title\": \"Extract the product_name here\",\n  \"price\": 99.99,\n  \"image\": \"Extract the image_url here\",\n  \"reason\": \"Write a 1-sentence reason why this matches their search.\"\n        }"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1696,
+        16
+      ],
+      "id": "a40b2e39-9991-4228-8ac7-4064491b966b",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "eadaed9b-2ef1-4eca-a322-98a4da03e205",
+              "leftValue": "={{ $json.message.photo }}",
+              "rightValue": false,
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        256,
+        -208
+      ],
+      "id": "9edf529e-6cbe-4a05-913a-a0aa2494c3ee",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "text": "=Analyze this e-commerce product image for catalog search.\n\nMOST IMPORTANT: Identify the EXACT product category first (shoes, t-shirt, dress, pants, bag, watch, etc). This must be the FIRST keyword. Never confuse product categories.\n\nThen describe:\n- Specific subcategory (sneaker, sandal, boot, polo, hoodie, etc)\n- Primary and secondary colors\n- Visible materials (leather, cotton, mesh, synthetic, denim, etc)\n- Distinct features (laces, stripes, logo, pattern, zipper, etc)\n- Target demographic (Men's, Women's, Kids', Unisex)\n\nFormat: single line of comma-separated keywords, most important first.\nDo NOT use sentences or conversational filler.\n\nExample for shoes: sneakers, shoes, white, leather, laces, low-top, Men's\nExample for shirts: t-shirt, crew neck, blue, cotton, striped, Men's\n\nHere is what the user said about the image:\n{{$json.imagePrompt}}",
+        "inputType": "binary",
+        "binaryPropertyName": "data0",
+        "options": {
+          "maxOutputTokens": 300
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        -352
+      ],
+      "id": "6aa9933c-ec34-41b2-a7ea-e41a4da22624",
+      "name": "Analyze an image",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "R8TxJMIo5gLEfgIC",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2af84f1b-3905-4dbf-a354-4f73422c9065",
+              "name": "finalText",
+              "value": "={{ $json.content.parts[0].text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        992,
+        -336
+      ],
+      "id": "e30744e7-048d-48f5-83b0-2e57f6ff16c8",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1e767e14-1eaa-4ec8-9c3d-25e167444668",
+              "name": "imagePrompt",
+              "value": "=={{ $json.message?.caption?.trim() || \"Extract 5-10 short keywords describing this image for product search.\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        -352
+      ],
+      "id": "2e64d4d0-3260-4092-84d1-cd7306f70a87",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\n\nconst photos = item.json.message?.photo || item.json.photo;\nif (!photos || photos.length === 0) {\n  throw new Error('No photo found in Telegram message');\n}\n\nconst fileId = photos[photos.length - 1].file_id;\nconst token = 'YOUR_BOT_TOKEN_HERE';\n\n// Step 1 - Get file path\nconst fileInfo = await this.helpers.httpRequest({\n  method: 'GET',\n  url: `https://api.telegram.org/bot${token}/getFile`,\n  qs: { file_id: fileId }\n});\nconst filePath = fileInfo.result.file_path;\n\n// Step 2 - Download image as binary\nconst fileData = await this.helpers.httpRequest({\n  method: 'GET',\n  url: `https://api.telegram.org/file/bot${token}/${filePath}`,\n  encoding: 'arraybuffer',\n  returnFullResponse: false\n});\n\nconst buffer = Buffer.from(fileData);\n\nreturn [{\n  json: {\n    ...item.json,\n    imagePrompt: item.json.message?.caption || \"Find similar products\"\n  },\n  binary: {\n    data0: await this.helpers.prepareBinaryData(buffer, 'image.jpg', 'image/jpeg')\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        -352
+      ],
+      "id": "89529010-7393-4fab-9e62-0e1c21b884fa",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -160,
+        -208
+      ],
+      "id": "6e88fe7e-cce8-44dd-9f13-c6b263d0fb90",
+      "name": "Telegram Trigger",
+      "webhookId": "5766be79-2228-4b3d-a197-0020944bd9cd",
+      "credentials": {
+        "telegramApi": {
+          "id": "IIN666GSRI2TUVgJ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "16e4e9bf-046b-4f87-821d-80bc79cf62e9",
+              "name": "=chatId",
+              "value": "={{ $json.message.chat.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        48,
+        -208
+      ],
+      "id": "f3a92c25-b759-4879-8b7e-b6318a802da9",
+      "name": "chatID"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id || $json.chatId || $('chatID').first().json.chatId }}",
+        "text": "={{ \n  typeof $json.output === 'string' \n    ? JSON.parse($json.output)?.assistant_message \n    : $json.output?.assistant_message \n}}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1920,
+        -144
+      ],
+      "id": "a82fd61f-60c9-48c7-b78d-b74ffb895656",
+      "name": "Send a text message",
+      "webhookId": "166e928a-7159-4787-a89a-49f0f2ca2be8",
+      "credentials": {
+        "telegramApi": {
+          "id": "IIN666GSRI2TUVgJ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nlet output = item.json.output;\n\nif (typeof output === 'string') {\n  try { output = JSON.parse(output); } catch(e) {}\n}\n\nconst products = output?.products || [];\nif (products.length === 0) return [item];\n\n// Get chatId directly from Telegram Trigger since AI Agent drops previous fields\nconst chatId = $('chatID').first().json.chatId;\n\nreturn products\n  .filter(p => p.image)\n  .map(p => ({\n    json: {\n      chat_id: chatId,\n      photo: p.image,\n      caption: `<b>${p.title}</b>\\n💰 $${(p.price / 83).toFixed(2)}\\n<i>${p.reason}</i>`,\n      output: item.json.output\n    }\n  }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        -208
+      ],
+      "id": "a7d59355-61d4-4cdd-acfe-9a19e9b87c0d",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "operation": "sendPhoto",
+        "chatId": "={{ $json.chat_id }}",
+        "file": "={{ $json.photo }}",
+        "additionalFields": {
+          "caption": "={{ $json.caption }}",
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1968,
+        -288
+      ],
+      "id": "47e36ad5-9619-4203-8301-c712f9eaf62e",
+      "name": "Send a photo message",
+      "webhookId": "166e928a-7159-4787-a89a-49f0f2ca2be8",
+      "credentials": {
+        "telegramApi": {
+          "id": "IIN666GSRI2TUVgJ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f76a44eb-9637-46b1-82c3-774960dcdcb7",
+              "leftValue": "={{ $json.photo }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "boolean",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1664,
+        -240
+      ],
+      "id": "6d4ee8d4-071d-4b47-8512-88e02ab03429",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "ALWAYS call this tool FIRST before responding. Use it to get the user's history. Input required: chat_id",
+        "documentId": {
+          "__rl": true,
+          "value": "1mQo9KL4gCLuF6NEaHWZe9edCvoKxlLjwaCVpBjs112E",
+          "mode": "list",
+          "cachedResultName": "chat_memory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mQo9KL4gCLuF6NEaHWZe9edCvoKxlLjwaCVpBjs112E/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "工作表1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mQo9KL4gCLuF6NEaHWZe9edCvoKxlLjwaCVpBjs112E/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "chat_id",
+              "lookupValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('values0_Value', ``, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        1328,
+        16
+      ],
+      "id": "30c9a3a6-a308-489f-aec8-3a4f08b08cfa",
+      "name": "Get row(s) in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "dMwp4Fkzi9f06K7R",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "ALWAYS call this tool LAST after responding. Use it to save the conversation. Input required: chat_id, session_type \n\nSaves user preferences and shopping history. Call this at the END of every conversation after responding. Input: chat_id, session_type, last_search, favorite_category. Optional: name, price_range, style_preference, notes, total_interactions.",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1mQo9KL4gCLuF6NEaHWZe9edCvoKxlLjwaCVpBjs112E",
+          "mode": "list",
+          "cachedResultName": "chat_memory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mQo9KL4gCLuF6NEaHWZe9edCvoKxlLjwaCVpBjs112E/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "工作表1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mQo9KL4gCLuF6NEaHWZe9edCvoKxlLjwaCVpBjs112E/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('chat_id__using_to_match_', ``, 'string') }}",
+            "name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('name', ``, 'string') }}",
+            "session_type": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('session_type', ``, 'string') }}",
+            "last_search": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('last_search', ``, 'string') }}",
+            "favorite_category": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('favorite_category', ``, 'string') }}",
+            "price_range": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('price_range', ``, 'string') }}",
+            "style_preference": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('style_preference', ``, 'string') }}",
+            "last_seen": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('last_seen', ``, 'string') }}",
+            "total_interactions": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('total_interactions', ``, 'string') }}",
+            "notes": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('notes', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "chat_id"
+          ],
+          "schema": [
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "session_type",
+              "displayName": "session_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_search",
+              "displayName": "last_search",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "favorite_category",
+              "displayName": "favorite_category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "price_range",
+              "displayName": "price_range",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "style_preference",
+              "displayName": "style_preference",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_seen",
+              "displayName": "last_seen",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total_interactions",
+              "displayName": "total_interactions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        1504,
+        16
+      ],
+      "id": "b6b2601c-6270-4c42-a2d7-75dadbcca3df",
+      "name": "Append or update row in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "dMwp4Fkzi9f06K7R",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings HuggingFace Inference": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        []
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze an image": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Analyze an image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "chatID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "chatID": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Send a photo message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a photo message": {
+      "main": [
+        []
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "ba395d23-c415-4b6c-9265-842d86ac4e2e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "532775be325d7ee0162efcd60d6a4a85d1c1f7c3c9292a0075c3e6a8b704b4cb"
+  },
+  "id": "kWXItBmfkHuivxGP",
+  "tags": []
+}
