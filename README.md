@@ -1,4 +1,4 @@
-# 🛍️ Belle — AI Shopping Assistant
+# 🛍️ Belle — AI Personal Buyer
 
 Belle is an AI-powered e-commerce shopping assistant built on Telegram. It helps users find products from a catalog using natural language text or by uploading images. Belle remembers returning users and personalises recommendations based on their shopping history.
 
