@@ -8,6 +8,8 @@ Belle is an AI-powered e-commerce shopping assistant built on Telegram. It helps
 
 ## Demo
 
+🎥 **Demo video:** [Watch demo on Loom] (https://www.loom.com/share/730d99a9cafa44c68929b7f904370a91)
+
 | Text Search | Image Search | Memory |
 |---|---|---|
 | "find me cool t-shirts" | Send a photo of any clothing item | Belle greets you by name on return visits |
