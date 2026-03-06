@@ -23,6 +23,7 @@
     },
     {
       "parameters": {
+        "modelName": "models/gemini-2.5-pro",
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
@@ -105,20 +106,6 @@
     },
     {
       "parameters": {
-        "schemaType": "manual",
-        "inputSchema": "{\n  \"id\": \"Extract the uniq_id or id here\",\n  \"title\": \"Extract the product_name here\",\n  \"price\": 99.99,\n  \"image\": \"Extract the image_url here\",\n  \"reason\": \"Write a 1-sentence reason why this matches their search.\"\n        }"
-      },
-      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
-      "typeVersion": 1.3,
-      "position": [
-        1696,
-        16
-      ],
-      "id": "a40b2e39-9991-4228-8ac7-4064491b966b",
-      "name": "Structured Output Parser"
-    },
-    {
-      "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
@@ -193,6 +180,12 @@
               "name": "finalText",
               "value": "={{ $json.content.parts[0].text }}",
               "type": "string"
+            },
+            {
+              "id": "31f98352-d4ae-411b-897a-cdc508ed67fd",
+              "name": "chatId",
+              "value": "={{ $('chatID').first().json.chatId }}",
+              "type": "string"
             }
           ]
         },
@@ -234,7 +227,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first();\n\nconst photos = item.json.message?.photo || item.json.photo;\nif (!photos || photos.length === 0) {\n  throw new Error('No photo found in Telegram message');\n}\n\nconst fileId = photos[photos.length - 1].file_id;\nconst token = 'YOUR_BOT_TOKEN_HERE';\n\n// Step 1 - Get file path\nconst fileInfo = await this.helpers.httpRequest({\n  method: 'GET',\n  url: `https://api.telegram.org/bot${token}/getFile`,\n  qs: { file_id: fileId }\n});\nconst filePath = fileInfo.result.file_path;\n\n// Step 2 - Download image as binary\nconst fileData = await this.helpers.httpRequest({\n  method: 'GET',\n  url: `https://api.telegram.org/file/bot${token}/${filePath}`,\n  encoding: 'arraybuffer',\n  returnFullResponse: false\n});\n\nconst buffer = Buffer.from(fileData);\n\nreturn [{\n  json: {\n    ...item.json,\n    imagePrompt: item.json.message?.caption || \"Find similar products\"\n  },\n  binary: {\n    data0: await this.helpers.prepareBinaryData(buffer, 'image.jpg', 'image/jpeg')\n  }\n}];"
+        "jsCode": "const item = $input.first();\n\nconst photos = item.json.message?.photo || item.json.photo;\nif (!photos || photos.length === 0) {\n  throw new Error('No photo found in Telegram message');\n}\n\nconst fileId = photos[photos.length - 1].file_id;\nconst token = 'YOUR_TOKEN_HERE';\n\n// Step 1 - Get file path\nconst fileInfo = await this.helpers.httpRequest({\n  method: 'GET',\n  url: `https://api.telegram.org/bot${token}/getFile`,\n  qs: { file_id: fileId }\n});\nconst filePath = fileInfo.result.file_path;\n\n// Step 2 - Download image as binary\nconst fileData = await this.helpers.httpRequest({\n  method: 'GET',\n  url: `https://api.telegram.org/file/bot${token}/${filePath}`,\n  encoding: 'arraybuffer',\n  returnFullResponse: false\n});\n\nconst buffer = Buffer.from(fileData);\n\nreturn [{\n  json: {\n    ...item.json,\n    imagePrompt: item.json.message?.caption || \"Find similar products\"\n  },\n  binary: {\n    data0: await this.helpers.prepareBinaryData(buffer, 'image.jpg', 'image/jpeg')\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -303,7 +296,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1920,
+        1968,
         -144
       ],
       "id": "a82fd61f-60c9-48c7-b78d-b74ffb895656",
@@ -437,9 +430,33 @@
     },
     {
       "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d9e88e42-80ee-4595-91e7-a4160d28cb54",
+              "name": "chatId",
+              "value": "={{ $('chatID').first().json.chatId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        464,
+        -208
+      ],
+      "id": "667127e7-e037-4fbd-a4f8-bf0e8ea06496",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
         "descriptionType": "manual",
         "toolDescription": "ALWAYS call this tool LAST after responding. Use it to save the conversation. Input required: chat_id, session_type \n\nSaves user preferences and shopping history. Call this at the END of every conversation after responding. Input: chat_id, session_type, last_search, favorite_category. Optional: name, price_range, style_preference, notes, total_interactions.",
-        "operation": "appendOrUpdate",
+        "operation": "append",
         "documentId": {
           "__rl": true,
           "value": "1mQo9KL4gCLuF6NEaHWZe9edCvoKxlLjwaCVpBjs112E",
@@ -464,7 +481,7 @@
             "favorite_category": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('favorite_category', ``, 'string') }}",
             "price_range": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('price_range', ``, 'string') }}",
             "style_preference": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('style_preference', ``, 'string') }}",
-            "last_seen": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('last_seen', ``, 'string') }}",
+            "last_seen": "={{ new Date().toISOString().replace('T', ' ').substring(0, 19) }}",
             "total_interactions": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('total_interactions', ``, 'string') }}",
             "notes": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('notes', ``, 'string') }}"
           },
@@ -576,7 +593,7 @@
         16
       ],
       "id": "b6b2601c-6270-4c42-a2d7-75dadbcca3df",
-      "name": "Append or update row in sheet in Google Sheets",
+      "name": "Append row in sheet in Google Sheets",
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "dMwp4Fkzi9f06K7R",
@@ -631,11 +648,6 @@
         ]
       ]
     },
-    "Structured Output Parser": {
-      "ai_outputParser": [
-        []
-      ]
-    },
     "If": {
       "main": [
         [
@@ -647,7 +659,7 @@
         ],
         [
           {
-            "node": "AI Agent",
+            "node": "Edit Fields2",
             "type": "main",
             "index": 0
           }
@@ -781,7 +793,18 @@
         ]
       ]
     },
-    "Append or update row in sheet in Google Sheets": {
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet in Google Sheets": {
       "ai_tool": [
         [
           {
@@ -793,13 +816,13 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "ba395d23-c415-4b6c-9265-842d86ac4e2e",
+  "versionId": "4f055c1e-004e-4aa0-964c-ddea4af0b439",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "532775be325d7ee0162efcd60d6a4a85d1c1f7c3c9292a0075c3e6a8b704b4cb"
