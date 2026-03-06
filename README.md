@@ -83,7 +83,8 @@ Belle handles general conversation gracefully — greetings, capability question
 ---
 
 ## Memory Schema
-
+** Google sheet:** https://docs.google.com/spreadsheets/d/1mQo9KL4gCLuF6NEaHWZe9edCvoKxlLjwaCVpBjs112E/edit?gid=0#gid=0
+The agent can retrieve information from the Google sheet and update a new conversation. 
 Stored in Google Sheets with the following columns:
 
 | Column | Description |
